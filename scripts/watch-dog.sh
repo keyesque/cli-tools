@@ -23,15 +23,23 @@ echo "$(date '+%F %T') - Watchdog started for PID $PID" >> "$LOG_FILE"
 
 while true; do
     TIMESTAMP=$(date '+%F %T')
+	# Rotate log
+	MAX_SIZE=1000
+	if [ -f "$LOG_FILE" ] && [ $(du -k "$LOG_FILE"| awk '{print $1 }') -ge "$MAX_SIZE" ]; then
+		mv "$LOG_FILE" "$LOG_FILE.$(date '+%F_%H-%M-%S')"
+		touch "$LOG_FILE"
+	fi
+	
     if kill -0 "$PID" 2>/dev/null; then
         echo "$TIMESTAMP - PID $PID is running" >> "$LOG_FILE"
-
-				# Log CPU and memory usage
+		
+		# Log CPU and memory usage
         USAGE=$(ps -p "$PID" -o %cpu,%mem --no-headers)
         CPU=$(echo $USAGE | awk '{print $1}')
         MEM=$(echo $USAGE | awk '{print $2}')
         echo "$TIMESTAMP - PID $PID CPU: $CPU% MEM: $MEM%" >> "$LOG_FILE"
     else
+		# If not running
         echo "$TIMESTAMP - PID $PID is NOT running. Restarting..." >> "$LOG_FILE"
         $SERVICE_CMD &
         PID="$!"
@@ -40,10 +48,3 @@ while true; do
     fi
     sleep 20
 done
-
-# Rotate log
-MAX_SIZE=1000
-if [ -f "$LOG_FILE" ] && [ $(du -k "$LOG_FILE"| awk '{print $1 }') -ge "$MAX_SIZE" ]; then
-	mv "$LOG_FILE" "$LOG_FILE.$(date '+%F_%H-%M-%S')"
-	touch "$LOG_FILE"
-fi
